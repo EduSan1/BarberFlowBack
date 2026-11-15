@@ -60,6 +60,32 @@ describe('API', () => {
     expect(response.status).toBe(201)
   })
 
+  it.each([
+    ['/api/clientes/c1', { nome: 'Caio', telefone: '3', email: 'c@c.com', cep: '01001-000' }],
+    ['/api/barbeiros/b1', { nome: 'Dani', especialidade: 'Barba', telefone: '4' }],
+    ['/api/servicos/s1', { descricao: 'Barba', valor: 25, duracao: 20 }],
+    ['/api/agendamentos/a1', { clienteId: 'c1', barbeiroId: 'b1', servicoId: 's1', data: '2026-11-13', hora: '11:00', status: 'confirmado' }],
+  ])('edita recursos protegidos em %s', async (path, body) => {
+    query.mockResolvedValueOnce({ rows: [user] }).mockResolvedValueOnce({ rows: [{ id: 'updated' }] })
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ cep: '01001-000', logradouro: 'Praça da Sé', bairro: 'Sé', localidade: 'São Paulo', uf: 'SP' }) })
+    const response = await request(app).put(path).set('Authorization', 'Bearer token-1').send(body)
+    expect(response.status).toBe(200)
+  })
+
+  it.each(['/api/clientes/c1', '/api/barbeiros/b1', '/api/servicos/s1', '/api/agendamentos/a1'])('exclui recursos protegidos em %s', async (path) => {
+    query.mockResolvedValueOnce({ rows: [user] }).mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 'deleted' }] })
+    const response = await request(app).delete(path).set('Authorization', 'Bearer token-1')
+    expect(response.status).toBe(204)
+  })
+
+  it('impede exclusão de registro com agendamentos vinculados', async () => {
+    const conflict = Object.assign(new Error('foreign key'), { code: '23503' })
+    query.mockResolvedValueOnce({ rows: [user] }).mockRejectedValueOnce(conflict)
+    const response = await request(app).delete('/api/clientes/c1').set('Authorization', 'Bearer token-1')
+    expect(response.status).toBe(409)
+    expect(response.body.error).toContain('agendamentos vinculados')
+  })
+
   it('retorna indicadores completos do dashboard', async () => {
     query
       .mockResolvedValueOnce({ rows: [user] })

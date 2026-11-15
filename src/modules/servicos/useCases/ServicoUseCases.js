@@ -14,3 +14,20 @@ export class CreateServicoUseCase {
     return this.repository.create({ descricao: input.descricao.trim(), valor, duracao })
   }
 }
+
+export class UpdateServicoUseCase {
+  constructor(repository) { this.repository = repository }
+  async execute(id, input) {
+    const valor = Number(input.valor)
+    const duracao = Number(input.duracao)
+    if (!input.descricao || !Number.isFinite(valor) || valor < 0 || !Number.isInteger(duracao) || duracao <= 0) throw new HttpError(400, 'Descrição, valor e duração válidos são obrigatórios.')
+    const updated = await this.repository.update(id, { descricao: input.descricao.trim(), valor, duracao })
+    if (!updated) throw new HttpError(404, 'Serviço não encontrado.')
+    return updated
+  }
+}
+
+export class DeleteServicoUseCase {
+  constructor(repository) { this.repository = repository }
+  async execute(id) { if (!await this.repository.delete(id)) throw new HttpError(404, 'Serviço não encontrado.') }
+}
